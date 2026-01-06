@@ -1,37 +1,148 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { GraduationCap, BookOpen } from 'lucide-react';
+import { GraduationCap, BookOpen, Sparkles } from 'lucide-react';
+import GlassCard from '../components/GlassCard';
 import logo from '../assets/logo.png';
 
 const LandingPage = () => {
     const navigate = useNavigate();
+    const [isVisible, setIsVisible] = useState(false);
+
+    useEffect(() => {
+        setIsVisible(true);
+    }, []);
 
     return (
-        <div className="flex flex-col items-center justify-center min-h-[80vh] gap-8">
-            <div className="text-center max-w-2xl mb-8">
-                <img src={logo} alt="School Logo" className="h-32 mx-auto mb-6" />
-                <h2 className="text-4xl font-extrabold text-school-navy mb-4">Welcome to the NHS Tutoring Portal</h2>
-                <p className="text-lg text-gray-600">Connecting students with peer tutors for academic success.</p>
+        <div className="min-h-screen flex flex-col items-center justify-center px-4 py-12 relative overflow-hidden">
+            {/* Animated background orbs */}
+            <div className="absolute top-20 left-10 w-72 h-72 bg-purple-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-float"></div>
+            <div className="absolute top-40 right-10 w-72 h-72 bg-pink-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-float" style={{ animationDelay: '1s' }}></div>
+            <div className="absolute bottom-20 left-1/2 w-72 h-72 bg-blue-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-float" style={{ animationDelay: '2s' }}></div>
+
+            {/* Hero Section */}
+            <div className={`text-center max-w-4xl mb-16 relative z-10 transition-all duration-1000 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'
+                }`}>
+                {/* Logo with glow effect */}
+                <div className="mb-8 relative inline-block">
+                    <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-pink-600 rounded-full blur-2xl opacity-30 animate-pulse"></div>
+                    <img
+                        src={logo}
+                        alt="School Logo"
+                        className="h-32 md:h-40 relative z-10 drop-shadow-2xl"
+                    />
+                </div>
+
+                {/* Title with gradient text */}
+                <h1 className="text-5xl md:text-7xl font-extrabold mb-6 leading-tight">
+                    <span className="gradient-text">NHS Tutoring</span>
+                    <br />
+                    <span className="text-white drop-shadow-lg">Portal</span>
+                </h1>
+
+                {/* Subtitle */}
+                <p className="text-xl md:text-2xl text-white/90 font-light mb-4">
+                    Connecting students with exceptional peer tutors
+                </p>
+
+                {/* Feature badges */}
+                <div className="flex flex-wrap justify-center gap-3 mt-8">
+                    <div className="glassmorphic px-4 py-2 rounded-full text-white/90 text-sm font-medium flex items-center gap-2">
+                        <Sparkles size={16} className="text-yellow-300" />
+                        15+ Subjects
+                    </div>
+                    <div className="glassmorphic px-4 py-2 rounded-full text-white/90 text-sm font-medium flex items-center gap-2">
+                        <Sparkles size={16} className="text-yellow-300" />
+                        Free Sessions
+                    </div>
+                    <div className="glassmorphic px-4 py-2 rounded-full text-white/90 text-sm font-medium flex items-center gap-2">
+                        <Sparkles size={16} className="text-yellow-300" />
+                        Flexible Schedule
+                    </div>
+                </div>
             </div>
 
-            <div className="grid md:grid-cols-2 gap-8 w-full max-w-4xl">
-                <button
+            {/* Portal Selection Cards */}
+            <div className={`grid md:grid-cols-2 gap-8 w-full max-w-5xl relative z-10 transition-all duration-1000 delay-300 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'
+                }`}>
+                {/* Tutor Portal Card */}
+                <GlassCard
                     onClick={() => navigate('/tutor-login')}
-                    className="group relative flex flex-col items-center justify-center p-12 bg-white border-2 border-school-green rounded-2xl shadow-sm hover:shadow-xl hover:bg-school-green hover:text-white transition-all duration-300"
+                    className="group relative overflow-hidden"
                 >
-                    <GraduationCap size={64} className="mb-4 text-school-green group-hover:text-white transition-colors" />
-                    <span className="text-2xl font-bold">I am a Tutor</span>
-                    <span className="mt-2 text-sm text-gray-500 group-hover:text-green-100">Log in to manage your schedule</span>
-                </button>
+                    {/* Gradient overlay on hover */}
+                    <div className="absolute inset-0 bg-gradient-to-br from-purple-600/20 to-pink-600/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
 
-                <button
-                    onClick={() => navigate('/student-portal')}
-                    className="group relative flex flex-col items-center justify-center p-12 bg-white border-2 border-school-navy rounded-2xl shadow-sm hover:shadow-xl hover:bg-school-navy hover:text-white transition-all duration-300"
+                    <div className="relative z-10 flex flex-col items-center text-center p-8">
+                        {/* Icon with glow */}
+                        <div className="mb-6 relative">
+                            <div className="absolute inset-0 bg-purple-500 rounded-full blur-xl opacity-50 group-hover:opacity-100 transition-opacity"></div>
+                            <div className="relative bg-gradient-to-br from-purple-500 to-pink-500 p-6 rounded-2xl shadow-glow-md">
+                                <GraduationCap size={48} className="text-white" />
+                            </div>
+                        </div>
+
+                        {/* Title */}
+                        <h2 className="text-3xl font-bold text-white mb-3">
+                            I'm a Tutor
+                        </h2>
+
+                        {/* Description */}
+                        <p className="text-white/80 text-lg mb-6">
+                            Manage your schedule and help fellow students succeed
+                        </p>
+
+                        {/* Action hint */}
+                        <div className="text-sm text-white/60 font-medium group-hover:text-white/90 transition-colors">
+                            Click to sign in →
+                        </div>
+                    </div>
+
+                    {/* Animated border glow */}
+                    <div className="absolute inset-0 rounded-2xl border-2 border-white/0 group-hover:border-white/30 transition-all duration-300"></div>
+                </GlassCard>
+
+                {/* Student Portal Card */}
+                <GlassCard
+                    onClick={() => navigate('/student')}
+                    className="group relative overflow-hidden"
                 >
-                    <BookOpen size={64} className="mb-4 text-school-navy group-hover:text-white transition-colors" />
-                    <span className="text-2xl font-bold">I am a Student</span>
-                    <span className="mt-2 text-sm text-gray-500 group-hover:text-blue-100">Find a tutor and book a session</span>
-                </button>
+                    {/* Gradient overlay on hover */}
+                    <div className="absolute inset-0 bg-gradient-to-br from-blue-600/20 to-teal-600/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+
+                    <div className="relative z-10 flex flex-col items-center text-center p-8">
+                        {/* Icon with glow */}
+                        <div className="mb-6 relative">
+                            <div className="absolute inset-0 bg-blue-500 rounded-full blur-xl opacity-50 group-hover:opacity-100 transition-opacity"></div>
+                            <div className="relative bg-gradient-to-br from-blue-500 to-teal-500 p-6 rounded-2xl shadow-glow-md">
+                                <BookOpen size={48} className="text-white" />
+                            </div>
+                        </div>
+
+                        {/* Title */}
+                        <h2 className="text-3xl font-bold text-white mb-3">
+                            I'm a Student
+                        </h2>
+
+                        {/* Description */}
+                        <p className="text-white/80 text-lg mb-6">
+                            Find expert tutors and book your next study session
+                        </p>
+
+                        {/* Action hint */}
+                        <div className="text-sm text-white/60 font-medium group-hover:text-white/90 transition-colors">
+                            Click to browse tutors →
+                        </div>
+                    </div>
+
+                    {/* Animated border glow */}
+                    <div className="absolute inset-0 rounded-2xl border-2 border-white/0 group-hover:border-white/30 transition-all duration-300"></div>
+                </GlassCard>
+            </div>
+
+            {/* Footer text */}
+            <div className={`mt-16 text-center text-white/60 text-sm transition-all duration-1000 delay-500 ${isVisible ? 'opacity-100' : 'opacity-0'
+                }`}>
+                <p>Lakewood Ranch Prep • National Honor Society</p>
             </div>
         </div>
     );

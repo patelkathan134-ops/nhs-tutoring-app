@@ -2,8 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { doc, getDoc, setDoc, collection, getDocs } from 'firebase/firestore';
 import { db } from '../firebase';
-import { Save, LogOut } from 'lucide-react';
+import { Save, LogOut, Calendar, BookOpen, User, ChevronLeft, ChevronRight, Check, X } from 'lucide-react';
 import { isExpired } from '../utils';
+import GlassCard from '../components/GlassCard';
+import Button from '../components/Button';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 const SUBJECTS = [
     "Civics EOC", "Biology EOC", "Algebra 1 EOC", "Geometry EOC",
@@ -24,18 +27,14 @@ const TutorDashboard = () => {
     const tutorId = localStorage.getItem('currentTutor');
 
     const [selectedSubjects, setSelectedSubjects] = useState([]);
-    const [availability, setAvailability] = useState({}); // { "Monday-7:00-7:45 AM": true }
+    const [availability, setAvailability] = useState({});
     const [bookedSlots, setBookedSlots] = useState([]);
     const [currentDate, setCurrentDate] = useState(new Date());
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [message, setMessage] = useState('');
-
-    // New Profile State
     const [bio, setBio] = useState('');
     const [gradeLevel, setGradeLevel] = useState('');
-
-    // Admin State (Rene Mahn only)
     const [newTutorName, setNewTutorName] = useState('');
     const [newTutorPassword, setNewTutorPassword] = useState('');
 
@@ -50,7 +49,6 @@ const TutorDashboard = () => {
     const fetchTutorData = async () => {
         try {
             if (tutorId === "Rene Mahn") {
-                // Master Admin Logic
                 const querySnapshot = await getDocs(collection(db, 'tutors'));
                 let allBookings = [];
 
@@ -58,15 +56,12 @@ const TutorDashboard = () => {
                     const data = doc.data();
                     const slots = data.slots || [];
                     const booked = slots.filter(s => s.status === 'Booked' && !isExpired(s.expiryDate));
-                    // Attach tutor name to the slot for display
                     const bookedWithTutor = booked.map(s => ({ ...s, tutorName: data.name }));
                     allBookings = [...allBookings, ...bookedWithTutor];
                 });
 
                 setBookedSlots(allBookings);
 
-                // Rene might also want to set her own availability, so we still fetch her specific doc logic if needed.
-                // But for now, let's assume she acts primarily as admin or just set both if her doc exists.
                 const myDocRef = doc(db, 'tutors', tutorId);
                 const myDocSnap = await getDoc(myDocRef);
                 if (myDocSnap.exists()) {
@@ -78,7 +73,6 @@ const TutorDashboard = () => {
                 }
 
             } else {
-                // Regular Tutor Logic
                 const docRef = doc(db, 'tutors', tutorId);
                 const docSnap = await getDoc(docRef);
 
@@ -89,7 +83,6 @@ const TutorDashboard = () => {
                     setBio(data.bio || '');
                     setGradeLevel(data.gradeLevel || '');
 
-                    // Filter for booked slots (that are NOT expired)
                     const allSlots = data.slots || [];
                     const booked = allSlots.filter(s => s.status === 'Booked' && !isExpired(s.expiryDate));
                     setBookedSlots(booked);
@@ -122,7 +115,6 @@ const TutorDashboard = () => {
         setSaving(true);
         setMessage('');
 
-        // Transform availability map into a structured array for easier querying later
         const slotsList = [];
         Object.entries(availability).forEach(([key, isAvailable]) => {
             if (isAvailable) {
@@ -132,9 +124,9 @@ const TutorDashboard = () => {
                 slotsList.push({
                     day,
                     time,
-                    status: 'Available', // Default status when tutor selects it
+                    status: 'Available',
                     studentName: null,
-                    id: key // unique ID for the slot
+                    id: key
                 });
             }
         });
@@ -145,13 +137,14 @@ const TutorDashboard = () => {
                 subjects: selectedSubjects,
                 bio: bio,
                 gradeLevel: gradeLevel,
-                rawAvailability: availability, // Save raw map to restore UI state easily
+                rawAvailability: availability,
                 slots: slotsList
             }, { merge: true });
-            setMessage('Settings saved successfully!');
+            setMessage('success');
+            setTimeout(() => setMessage(''), 3000);
         } catch (error) {
             console.error("Error saving:", error);
-            setMessage('Failed to save settings.');
+            setMessage('error');
         } finally {
             setSaving(false);
         }
@@ -163,7 +156,6 @@ const TutorDashboard = () => {
         if (!newTutorName || !newTutorPassword) return;
 
         try {
-            // Check if tutor already exists (optional but good)
             const newTutorRef = doc(db, 'tutors', newTutorName);
             const snap = await getDoc(newTutorRef);
 
@@ -182,12 +174,13 @@ const TutorDashboard = () => {
                 rawAvailability: {}
             });
 
-            setMessage(`Success! Created tutor account for ${newTutorName}`);
+            setMessage('tutor-added');
             setNewTutorName('');
             setNewTutorPassword('');
+            setTimeout(() => setMessage(''), 3000);
         } catch (error) {
             console.error("Error creating tutor:", error);
-            setMessage('Failed to create tutor.');
+            setMessage('error');
         }
     };
 
@@ -196,248 +189,353 @@ const TutorDashboard = () => {
         navigate('/');
     };
 
-    if (loading) return <div className="p-8 text-center">Loading...</div>;
+    if (loading) {
+        return (
+            <div className="min-h-screen flex items-center justify-center">
+                <LoadingSpinner size="lg" />
+            </div>
+        );
+    }
 
     return (
-        <div className="max-w-5xl mx-auto">
-            <div className="flex justify-between items-center mb-6">
-                <h2 className="text-3xl font-bold text-school-navy">Welcome, {tutorId}</h2>
-                <button onClick={handleLogout} className="flex items-center text-gray-600 hover:text-red-600">
-                    <LogOut size={20} className="mr-2" /> Logout
-                </button>
-            </div>
+        <div className="min-h-screen px-4 py-8 md:py-12">
+            {/* Animated background orbs */}
+            <div className="fixed top-20 left-10 w-96 h-96 bg-purple-500 rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-float pointer-events-none"></div>
+            <div className="fixed bottom-20 right-10 w-96 h-96 bg-pink-500 rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-float pointer-events-none" style={{ animationDelay: '2s' }}></div>
 
-            {message && (
-                <div className={`p-4 mb-6 rounded-md ${message.includes('success') || message.includes('Success') ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                    {message}
-                </div>
-            )}
-
-            {/* Admin Panel for Rene Mahn */}
-            {tutorId === "Rene Mahn" && (
-                <div className="bg-school-navy text-white p-6 rounded-xl shadow-lg mb-8 border border-blue-900">
-                    <h3 className="text-xl font-bold mb-4 flex items-center">
-                        Admin: Add New Tutor
-                    </h3>
-                    <form onSubmit={handleAddTutor} className="flex flex-col md:flex-row gap-4 items-end">
-                        <div className="flex-1 w-full">
-                            <label className="block text-xs font-semibold uppercase tracking-wider mb-1 opacity-80">Full Name</label>
-                            <input
-                                className="w-full text-gray-900 p-2 rounded focus:ring-2 focus:ring-school-green outline-none"
-                                placeholder="e.g. John Doe"
-                                value={newTutorName}
-                                onChange={e => setNewTutorName(e.target.value)}
-                                required
-                            />
+            <div className="max-w-7xl mx-auto relative z-10">
+                {/* Header */}
+                <div className="mb-8 animate-fade-in">
+                    <GlassCard hover={false} className="flex flex-col md:flex-row justify-between items-center gap-4">
+                        <div>
+                            <h1 className="text-3xl md:text-4xl font-bold text-white mb-1">
+                                Welcome back, <span className="gradient-text">{tutorId}</span>
+                            </h1>
+                            <p className="text-white/70 text-sm">Manage your schedule and help students succeed</p>
                         </div>
-                        <div className="flex-1 w-full">
-                            <label className="block text-xs font-semibold uppercase tracking-wider mb-1 opacity-80">Password</label>
-                            <input
-                                className="w-full text-gray-900 p-2 rounded focus:ring-2 focus:ring-school-green outline-none"
-                                type="text"
-                                placeholder="Set a unique password"
-                                value={newTutorPassword}
-                                onChange={e => setNewTutorPassword(e.target.value)}
-                                required
-                            />
-                        </div>
-                        <button type="submit" className="bg-school-green hover:bg-green-600 text-white font-bold py-2 px-6 rounded transition-colors shadow-md">
-                            Create Tutor
-                        </button>
-                    </form>
-                </div>
-            )}
-
-            {/* Profile Section */}
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 mb-8">
-                <h3 className="text-xl font-semibold mb-4 text-school-green border-b pb-2">My Profile</h3>
-                <div className="grid md:grid-cols-2 gap-6">
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Grade Level</label>
-                        <select
-                            value={gradeLevel}
-                            onChange={(e) => setGradeLevel(e.target.value)}
-                            className="w-full p-2 border border-gray-300 rounded-md focus:ring-school-green focus:border-school-green"
-                        >
-                            <option value="">-- Select Grade --</option>
-                            <option value="9th Grade">9th Grade</option>
-                            <option value="10th Grade">10th Grade</option>
-                            <option value="11th Grade">11th Grade</option>
-                            <option value="12th Grade">12th Grade</option>
-                        </select>
-                    </div>
-                    <div>
-                        {/* Spacer or additional fields if needed */}
-                    </div>
-                    <div className="md:col-span-2">
-                        <label className="block text-sm font-medium text-gray-700 mb-1">About Me (Bio)</label>
-                        <textarea
-                            value={bio}
-                            onChange={(e) => setBio(e.target.value)}
-                            rows="3"
-                            placeholder="Tell students about yourself, your favorite subjects, or why you love tutoring..."
-                            className="w-full p-2 border border-gray-300 rounded-md focus:ring-school-green focus:border-school-green"
-                        />
-                    </div>
-                </div>
-            </div>
-
-            <div className="grid md:grid-cols-2 gap-8">
-                {/* Subject Selection */}
-                <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-                    <h3 className="text-xl font-semibold mb-4 text-school-green border-b pb-2">My Subjects</h3>
-                    <div className="grid grid-cols-1 gap-2 max-h-[500px] overflow-y-auto">
-                        {SUBJECTS.map(subject => (
-                            <label key={subject} className="flex items-center space-x-3 p-2 hover:bg-gray-50 rounded cursor-pointer">
-                                <input
-                                    type="checkbox"
-                                    checked={selectedSubjects.includes(subject)}
-                                    onChange={() => handleSubjectToggle(subject)}
-                                    className="w-5 h-5 text-school-green rounded border-gray-300 focus:ring-school-green"
-                                />
-                                <span className="text-gray-700">{subject}</span>
-                            </label>
-                        ))}
-                    </div>
+                        <Button variant="outline" onClick={handleLogout} className="flex items-center gap-2">
+                            <LogOut size={18} />
+                            Logout
+                        </Button>
+                    </GlassCard>
                 </div>
 
-                {/* Availability Scheduler */}
-                <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-                    <h3 className="text-xl font-semibold mb-4 text-school-green border-b pb-2">Weekly Availability</h3>
-                    <div className="space-y-6">
-                        {WEEK_SCHEDULE.map(({ day, slots }) => (
-                            <div key={day}>
-                                <h4 className="font-medium text-gray-900 mb-2">{day}</h4>
-                                <div className="flex flex-wrap gap-2">
-                                    {slots.map(slot => {
-                                        const isSelected = availability[`${day}-${slot}`];
-                                        return (
-                                            <button
-                                                key={slot}
-                                                onClick={() => handleSlotToggle(day, slot)}
-                                                className={`px-3 py-1.5 text-sm rounded-full border transition-all ${isSelected
-                                                    ? 'bg-school-navy text-white border-school-navy'
-                                                    : 'bg-white text-gray-600 border-gray-300 hover:border-school-navy'
-                                                    }`}
-                                            >
-                                                {slot}
-                                            </button>
-                                        );
-                                    })}
+                {/* Success/Error Messages */}
+                {message && (
+                    <div className={`mb-6 animate-slide-down ${message === 'success' || message === 'tutor-added'
+                            ? 'glassmorphic border-green-400/50'
+                            : 'glassmorphic border-red-400/50'
+                        } p-4 rounded-xl border`}>
+                        <p className={`text-center font-medium ${message === 'success' || message === 'tutor-added'
+                                ? 'text-green-300'
+                                : 'text-red-300'
+                            }`}>
+                            {message === 'success' && '✓ Settings saved successfully!'}
+                            {message === 'tutor-added' && '✓ Tutor account created successfully!'}
+                            {message === 'error' && '✗ An error occurred. Please try again.'}
+                        </p>
+                    </div>
+                )}
+
+                {/* Admin Panel */}
+                {tutorId === "Rene Mahn" && (
+                    <div className="mb-8 animate-slide-up">
+                        <GlassCard hover={false} className="bg-gradient-to-br from-purple-600/20 to-pink-600/20">
+                            <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                                <User size={24} />
+                                Admin: Add New Tutor
+                            </h3>
+                            <form onSubmit={handleAddTutor} className="flex flex-col md:flex-row gap-4">
+                                <div className="flex-1">
+                                    <label className="block text-white/90 text-sm font-medium mb-2">Full Name</label>
+                                    <input
+                                        className="w-full px-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-500 backdrop-blur-sm"
+                                        placeholder="e.g. John Doe"
+                                        value={newTutorName}
+                                        onChange={e => setNewTutorName(e.target.value)}
+                                        required
+                                    />
                                 </div>
+                                <div className="flex-1">
+                                    <label className="block text-white/90 text-sm font-medium mb-2">Password</label>
+                                    <input
+                                        className="w-full px-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-500 backdrop-blur-sm"
+                                        type="text"
+                                        placeholder="Set password"
+                                        value={newTutorPassword}
+                                        onChange={e => setNewTutorPassword(e.target.value)}
+                                        required
+                                    />
+                                </div>
+                                <Button type="submit" variant="primary" className="md:mt-auto">
+                                    Create Tutor
+                                </Button>
+                            </form>
+                        </GlassCard>
+                    </div>
+                )}
+
+                {/* Profile Section */}
+                <div className="mb-8 animate-slide-up" style={{ animationDelay: '100ms' }}>
+                    <GlassCard hover={false}>
+                        <h3 className="text-2xl font-bold text-white mb-6 flex items-center gap-2">
+                            <User size={24} />
+                            My Profile
+                        </h3>
+                        <div className="grid md:grid-cols-2 gap-6">
+                            <div>
+                                <label className="block text-white/90 text-sm font-medium mb-2">Grade Level</label>
+                                <select
+                                    value={gradeLevel}
+                                    onChange={(e) => setGradeLevel(e.target.value)}
+                                    className="w-full px-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white focus:outline-none focus:ring-2 focus:ring-purple-500 backdrop-blur-sm"
+                                >
+                                    <option value="" className="text-gray-900">-- Select Grade --</option>
+                                    <option value="9th Grade" className="text-gray-900">9th Grade</option>
+                                    <option value="10th Grade" className="text-gray-900">10th Grade</option>
+                                    <option value="11th Grade" className="text-gray-900">11th Grade</option>
+                                    <option value="12th Grade" className="text-gray-900">12th Grade</option>
+                                </select>
                             </div>
-                        ))}
-                    </div>
-                </div>
-            </div>
-
-            <div className="mt-8 flex justify-end">
-                <button
-                    onClick={handleSave}
-                    disabled={saving}
-                    className="flex items-center bg-school-green text-white px-8 py-3 rounded-lg font-bold hover:bg-green-800 transition-colors shadow-md disabled:opacity-50"
-                >
-                    <Save size={20} className="mr-2" />
-                    {saving ? 'Saving...' : 'Save Changes'}
-                </button>
-            </div>
-
-            <div className="mt-8 bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-                <div className="flex justify-between items-center mb-6 border-b pb-4">
-                    <h3 className="text-xl font-semibold text-school-navy">My Calendar</h3>
-                    <div className="flex items-center space-x-4">
-                        <button
-                            onClick={() => {
-                                const newDate = new Date(currentDate);
-                                newDate.setMonth(newDate.getMonth() - 1);
-                                setCurrentDate(newDate);
-                            }}
-                            className="p-2 hover:bg-gray-100 rounded-full"
-                        >
-                            ←
-                        </button>
-                        <span className="font-bold text-lg text-gray-800">
-                            {currentDate.toLocaleString('default', { month: 'long', year: 'numeric' })}
-                        </span>
-                        <button
-                            onClick={() => {
-                                const newDate = new Date(currentDate);
-                                newDate.setMonth(newDate.getMonth() + 1);
-                                setCurrentDate(newDate);
-                            }}
-                            className="p-2 hover:bg-gray-100 rounded-full"
-                        >
-                            →
-                        </button>
-                    </div>
-                </div>
-
-                {/* Calendar Grid */}
-                <div className="grid grid-cols-7 gap-px bg-gray-200 rounded-lg overflow-hidden border border-gray-200">
-                    {/* Headers */}
-                    {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-                        <div key={day} className="bg-gray-50 p-2 text-center text-xs font-semibold text-gray-500 uppercase">
-                            {day}
+                            <div className="md:col-span-2">
+                                <label className="block text-white/90 text-sm font-medium mb-2">About Me (Bio)</label>
+                                <textarea
+                                    value={bio}
+                                    onChange={(e) => setBio(e.target.value)}
+                                    rows="3"
+                                    placeholder="Tell students about yourself, your favorite subjects, or why you love tutoring..."
+                                    className="w-full px-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-500 backdrop-blur-sm resize-none"
+                                />
+                            </div>
                         </div>
-                    ))}
+                    </GlassCard>
+                </div>
 
-                    {/* Days */}
-                    {(() => {
-                        const year = currentDate.getFullYear();
-                        const month = currentDate.getMonth();
-                        const daysInMonth = new Date(year, month + 1, 0).getDate();
-                        const firstDayOfMonth = new Date(year, month, 1).getDay(); // 0 = Sunday
+                {/* Subjects & Availability Grid */}
+                <div className="grid lg:grid-cols-2 gap-8 mb-8">
+                    {/* Subject Selection */}
+                    <div className="animate-slide-up" style={{ animationDelay: '200ms' }}>
+                        <GlassCard hover={false}>
+                            <h3 className="text-2xl font-bold text-white mb-6 flex items-center gap-2">
+                                <BookOpen size={24} />
+                                My Subjects
+                            </h3>
+                            <div className="grid grid-cols-1 gap-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+                                {SUBJECTS.map(subject => (
+                                    <label
+                                        key={subject}
+                                        className={`flex items-center gap-3 p-4 rounded-xl cursor-pointer transition-all duration-200 ${selectedSubjects.includes(subject)
+                                                ? 'bg-gradient-to-r from-purple-600/30 to-pink-600/30 border-2 border-purple-400/50'
+                                                : 'bg-white/5 border-2 border-white/10 hover:bg-white/10'
+                                            }`}
+                                    >
+                                        <div className={`w-6 h-6 rounded-lg flex items-center justify-center transition-all ${selectedSubjects.includes(subject)
+                                                ? 'bg-gradient-to-br from-purple-500 to-pink-500'
+                                                : 'bg-white/10 border-2 border-white/20'
+                                            }`}>
+                                            {selectedSubjects.includes(subject) && <Check size={16} className="text-white" />}
+                                        </div>
+                                        <input
+                                            type="checkbox"
+                                            checked={selectedSubjects.includes(subject)}
+                                            onChange={() => handleSubjectToggle(subject)}
+                                            className="sr-only"
+                                        />
+                                        <span className="text-white font-medium">{subject}</span>
+                                    </label>
+                                ))}
+                            </div>
+                        </GlassCard>
+                    </div>
 
-                        const days = [];
-
-                        // Empty slots for prev month
-                        for (let i = 0; i < firstDayOfMonth; i++) {
-                            days.push(<div key={`empty-${i}`} className="bg-white min-h-[100px]" />);
-                        }
-
-                        // Actual days
-                        for (let d = 1; d <= daysInMonth; d++) {
-                            const dateObj = new Date(year, month, d);
-                            // Normalize to YYYY-MM-DD for comparison (local time)
-                            const dateStr = dateObj.toLocaleDateString();
-
-                            // Find sessions for this day
-                            const daySessions = bookedSlots.filter(s => {
-                                if (!s.expiryDate) return false;
-                                const sessionDate = new Date(s.expiryDate);
-                                return sessionDate.getDate() === d &&
-                                    sessionDate.getMonth() === month &&
-                                    sessionDate.getFullYear() === year;
-                            });
-
-                            days.push(
-                                <div key={d} className={`bg-white min-h-[100px] p-2 border-t border-l border-gray-100 ${daySessions.length > 0 ? 'bg-green-50/30' : ''}`}>
-                                    <div className="text-right">
-                                        <span className={`text-sm font-medium ${d === new Date().getDate() &&
-                                            month === new Date().getMonth() &&
-                                            year === new Date().getFullYear()
-                                            ? 'bg-school-navy text-white w-6 h-6 inline-flex items-center justify-center rounded-full'
-                                            : 'text-gray-700'
-                                            }`}>{d}</span>
+                    {/* Availability Schedule */}
+                    <div className="animate-slide-up" style={{ animationDelay: '300ms' }}>
+                        <GlassCard hover={false}>
+                            <h3 className="text-2xl font-bold text-white mb-6 flex items-center gap-2">
+                                <Calendar size={24} />
+                                Weekly Availability
+                            </h3>
+                            <div className="space-y-6">
+                                {WEEK_SCHEDULE.map(({ day, slots }) => (
+                                    <div key={day}>
+                                        <h4 className="text-white font-semibold mb-3 text-lg">{day}</h4>
+                                        <div className="flex flex-wrap gap-2">
+                                            {slots.map(slot => {
+                                                const isSelected = availability[`${day}-${slot}`];
+                                                return (
+                                                    <button
+                                                        key={slot}
+                                                        onClick={() => handleSlotToggle(day, slot)}
+                                                        className={`px-4 py-2 text-sm font-medium rounded-xl transition-all duration-200 ${isSelected
+                                                                ? 'bg-gradient-to-r from-blue-500 to-teal-500 text-white shadow-glow-sm'
+                                                                : 'bg-white/5 text-white/70 border-2 border-white/20 hover:bg-white/10'
+                                                            }`}
+                                                    >
+                                                        {slot}
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
                                     </div>
-                                    <div className="mt-1 space-y-1">
-                                        {daySessions.map(session => (
-                                            <div key={session.id} className="text-xs bg-school-green/10 text-school-green p-1.5 rounded border border-school-green/20 flex flex-col gap-0.5 text-left" title={`Student: ${session.studentName || 'Unknown'}\nSubject: ${session.subject || 'N/A'}\nTime: ${session.time}`}>
-                                                <div className="font-bold text-school-navy truncate w-full">{session.studentName || 'Student'}</div>
-                                                <div className="truncate w-full text-gray-700">{session.subject || <span className="text-red-400 italic">No Subject</span>}</div>
-                                                <div className="truncate w-full text-gray-500 text-[10px]">{session.time}</div>
-                                                {session.tutorName && <div className="text-[10px] italic text-gray-400 truncate w-full">{session.tutorName}</div>}
-                                            </div>
-                                        ))}
-                                    </div>
+                                ))}
+                            </div>
+                        </GlassCard>
+                    </div>
+                </div>
+
+                {/* Save Button */}
+                <div className="mb-8 flex justify-end animate-fade-in">
+                    <Button
+                        onClick={handleSave}
+                        disabled={saving}
+                        variant="primary"
+                        size="lg"
+                        className="flex items-center gap-2 min-w-[200px] justify-center"
+                    >
+                        {saving ? (
+                            <>
+                                <LoadingSpinner size="sm" />
+                                <span>Saving...</span>
+                            </>
+                        ) : (
+                            <>
+                                <Save size={20} />
+                                <span>Save Changes</span>
+                            </>
+                        )}
+                    </Button>
+                </div>
+
+                {/* Calendar */}
+                <div className="animate-slide-up" style={{ animationDelay: '400ms' }}>
+                    <GlassCard hover={false}>
+                        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+                            <h3 className="text-2xl font-bold text-white flex items-center gap-2">
+                                <Calendar size={28} />
+                                My Calendar
+                            </h3>
+                            <div className="flex items-center gap-4 glassmorphic px-4 py-2 rounded-xl">
+                                <button
+                                    onClick={() => {
+                                        const newDate = new Date(currentDate);
+                                        newDate.setMonth(newDate.getMonth() - 1);
+                                        setCurrentDate(newDate);
+                                    }}
+                                    className="text-white/80 hover:text-white transition-colors p-2 hover:bg-white/10 rounded-lg"
+                                >
+                                    <ChevronLeft size={20} />
+                                </button>
+                                <span className="font-bold text-lg text-white min-w-[180px] text-center">
+                                    {currentDate.toLocaleString('default', { month: 'long', year: 'numeric' })}
+                                </span>
+                                <button
+                                    onClick={() => {
+                                        const newDate = new Date(currentDate);
+                                        newDate.setMonth(newDate.getMonth() + 1);
+                                        setCurrentDate(newDate);
+                                    }}
+                                    className="text-white/80 hover:text-white transition-colors p-2 hover:bg-white/10 rounded-lg"
+                                >
+                                    <ChevronRight size={20} />
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Calendar Grid */}
+                        <div className="grid grid-cols-7 gap-2">
+                            {/* Headers */}
+                            {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+                                <div key={day} className="text-center py-3 text-white/70 font-semibold text-sm">
+                                    {day}
                                 </div>
-                            );
-                        }
+                            ))}
 
-                        return days;
-                    })()}
+                            {/* Days */}
+                            {(() => {
+                                const year = currentDate.getFullYear();
+                                const month = currentDate.getMonth();
+                                const daysInMonth = new Date(year, month + 1, 0).getDate();
+                                const firstDayOfMonth = new Date(year, month, 1).getDay();
+
+                                const days = [];
+
+                                // Empty slots
+                                for (let i = 0; i < firstDayOfMonth; i++) {
+                                    days.push(<div key={`empty-${i}`} className="min-h-[100px] bg-white/5 rounded-xl" />);
+                                }
+
+                                // Actual days
+                                for (let d = 1; d <= daysInMonth; d++) {
+                                    const dateObj = new Date(year, month, d);
+                                    const isToday = d === new Date().getDate() &&
+                                        month === new Date().getMonth() &&
+                                        year === new Date().getFullYear();
+
+                                    const daySessions = bookedSlots.filter(s => {
+                                        if (!s.expiryDate) return false;
+                                        const sessionDate = new Date(s.expiryDate);
+                                        return sessionDate.getDate() === d &&
+                                            sessionDate.getMonth() === month &&
+                                            sessionDate.getFullYear() === year;
+                                    });
+
+                                    days.push(
+                                        <div
+                                            key={d}
+                                            className={`min-h-[100px] p-3 rounded-xl transition-all ${daySessions.length > 0
+                                                    ? 'bg-gradient-to-br from-green-500/20 to-teal-500/20 border-2 border-green-400/30'
+                                                    : 'bg-white/5 border-2 border-white/10'
+                                                }`}
+                                        >
+                                            <div className="flex justify-end mb-2">
+                                                <span className={`text-sm font-semibold ${isToday
+                                                        ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white w-7 h-7 flex items-center justify-center rounded-full'
+                                                        : 'text-white/80'
+                                                    }`}>
+                                                    {d}
+                                                </span>
+                                            </div>
+                                            <div className="space-y-1">
+                                                {daySessions.map(session => (
+                                                    <div
+                                                        key={session.id}
+                                                        className="text-xs bg-gradient-to-r from-purple-600/20 to-pink-600/20 backdrop-blur-sm border border-purple-400/30 text-white p-2 rounded-lg"
+                                                    >
+                                                        <div className="font-bold truncate">{session.studentName || 'Student'}</div>
+                                                        <div className="text-white/70 truncate text-[10px]">{session.subject || 'No Subject'}</div>
+                                                        <div className="text-white/60 text-[10px]">{session.time}</div>
+                                                        {session.tutorName && <div className="text-white/50 text-[10px] italic">{session.tutorName}</div>}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    );
+                                }
+
+                                return days;
+                            })()}
+                        </div>
+                    </GlassCard>
                 </div>
             </div>
+
+            {/* Custom scrollbar styles */}
+            <style jsx>{`
+                .custom-scrollbar::-webkit-scrollbar {
+                    width: 8px;
+                }
+                .custom-scrollbar::-webkit-scrollbar-track {
+                    background: rgba(255, 255, 255, 0.05);
+                    border-radius: 10px;
+                }
+                .custom-scrollbar::-webkit-scrollbar-thumb {
+                    background: rgba(168, 85, 247, 0.5);
+                    border-radius: 10px;
+                }
+                .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+                    background: rgba(168, 85, 247, 0.7);
+                }
+            `}</style>
         </div>
     );
 };
